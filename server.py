@@ -1,12 +1,13 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
 import threading
 import os
 from concurrent.futures import ThreadPoolExecutor
 
-from Brain.brain import ask, ask_stream
+from Brain.brain import ask, ask_stream, generate_chat_title
 from Memory.memory_manager import search_memories
 from Tools.telegram_commands import handle_command
 from Tools.telegram_media import download_image_as_base64, download_file, extract_text_from_file
@@ -278,6 +279,12 @@ app.add_middleware(
 class Message(BaseModel):
     text: str
 
+class RenameRequest(BaseModel):
+    name: str
+
+class AutonameRequest(BaseModel):
+    message: str
+
 @app.post("/chat")
 def chat(msg: Message):
     reply = ask(msg.text, channel="web")
@@ -301,8 +308,7 @@ def resources():
         "connected": True
     }
 
-from pydantic import BaseModel
-import json, os, uuid
+import json
 
 CHATS_FILE = "chats.json"
 
@@ -324,9 +330,39 @@ def save_chats(data):
 def get_chats():
     return load_chats()
 
+@app.get("/chats/{chat_id}")
+def get_chat(chat_id: str):
+    chats = load_chats()
+    chat = chats.get(chat_id)
+    if chat is None:
+        raise HTTPException(status_code=404, detail="Chat no encontrado")
+    return chat
+
+@app.post("/chats/autoname")
+def autoname_chat(body: AutonameRequest):
+    # Declarado antes de /chats/{chat_id}: si no, FastAPI matchea
+    # "autoname" como si fuera un chat_id literal.
+    return {"name": generate_chat_title(body.message)}
+
 @app.post("/chats/{chat_id}")
 def save_chat(chat_id: str, body: dict):
     chats = load_chats()
     chats[chat_id] = body
     save_chats(chats)
     return {"ok": True}
+
+@app.patch("/chats/{chat_id}/name")
+def rename_chat(chat_id: str, body: RenameRequest):
+    chats = load_chats()
+    chat = chats.get(chat_id)
+    if chat is None:
+        raise HTTPException(status_code=404, detail="Chat no encontrado")
+    chat["name"] = body.name
+    chats[chat_id] = chat
+    save_chats(chats)
+    return {"ok": True, "name": body.name}
+
+# --- Frontend estático (build de producción) ---
+DIST_DIR = os.path.join(os.path.dirname(__file__), "dist")
+if os.path.isdir(DIST_DIR):
+    app.mount("/", StaticFiles(directory=DIST_DIR, html=True), name="frontend")

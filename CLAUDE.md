@@ -74,19 +74,26 @@ python server.py
 
 ## Ejecutar todo
 
-**Terminal 1** (Backend FastAPI + Telegram Bridge integrado):
+**Un solo servicio** (backend FastAPI + Telegram Bridge + WebUI, un solo puerto):
 ```bash
-python server.py
+npm run build              # solo si cambiaste src/AlexDashboard.tsx
+.venv/bin/uvicorn server:app --host 127.0.0.1 --port 8000
 ```
 
-**Terminal 2** (Frontend React - opcional):
+Luego accede a http://localhost:8000 (WebUI servida por el propio backend) o envía mensajes por Telegram al bot.
+
+**Nota:** `python server.py` NO arranca nada — `server.py` no tiene bloque `if __name__ == "__main__"`, solo define la app. Siempre se arranca vía `uvicorn server:app`.
+
+**Modo desarrollo del dashboard** (hot-reload, dos procesos separados en vez de uno):
 ```bash
-npm run dev
+# Terminal 1
+.venv/bin/uvicorn server:app --host 127.0.0.1 --port 8000
+# Terminal 2
+npm run dev   # http://localhost:5173, pega directo a la API en :8000
 ```
+Cuando termines de iterar en `src/AlexDashboard.tsx`, corre `npm run build` para que el servicio único (puerto 8000) sirva la versión actualizada.
 
-Luego accede a http://localhost:5173 o envía mensajes por Telegram al bot.
-
-**Nota:** Telegram Bridge ahora está integrado en `server.py` como tarea de background. No necesitas ejecutar `Telegram_bridge.py` por separado, pero sigue siendo disponible como script independiente si lo necesitas.
+**Nota:** Telegram Bridge está integrado en `server.py` como tarea de background del propio proceso de uvicorn. No necesitas ejecutar `Telegram_bridge.py` por separado, pero sigue siendo disponible como script independiente si lo necesitas.
 
 ## Notas técnicas
 

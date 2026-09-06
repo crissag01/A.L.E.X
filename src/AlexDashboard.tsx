@@ -109,6 +109,8 @@ const AlexDashboard: React.FC = () => {
   const [chatId, setChatId] = useState(() => Math.random().toString(36).substring(7));
   const [chats, setChats] = useState<Chat[]>([]);
   const [chatName, setChatName] = useState('Nuevo chat');
+  const [editingChatId, setEditingChatId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [stats, setStats] = useState<Stats>({ cpu: 0, ram: 0, model: 'Claude Haiku 4.5', connected: false });
   const [activeSection, setActiveSection] = useState('Alex Core');
@@ -125,9 +127,17 @@ const AlexDashboard: React.FC = () => {
   useEffect(() => {
     fetchStats();
     loadChats();
+    try {
+      const lastChatId = localStorage.getItem('alex_active_chat');
+      if (lastChatId) loadChat(lastChatId);
+    } catch {}
     const interval = setInterval(fetchStats, 3000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    try { localStorage.setItem('alex_active_chat', chatId); } catch {}
+  }, [chatId]);
 
   useEffect(() => {
     if (messages.length > 1) {
@@ -193,7 +203,10 @@ const AlexDashboard: React.FC = () => {
 
   const loadChat = (id: string) => {
     fetch(`http://127.0.0.1:8000/chats/${id}`)
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) throw new Error('Chat no encontrado');
+        return r.json();
+      })
       .then((data: any) => {
         setChatId(data.id || id);
         setChatName(data.name || 'Chat sin nombre');
@@ -206,6 +219,21 @@ const AlexDashboard: React.FC = () => {
       .catch(() => {});
   };
 
+  const renameChat = (id: string, name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    fetch(`http://127.0.0.1:8000/chats/${id}/name`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: trimmed })
+    })
+      .then(() => {
+        setChats(prev => prev.map(c => c.id === id ? { ...c, name: trimmed } : c));
+        if (id === chatId) setChatName(trimmed);
+      })
+      .catch(() => {});
+  };
+
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
     const userMessage: Message = {
@@ -214,6 +242,27 @@ const AlexDashboard: React.FC = () => {
       text: input,
       timestamp: new Date()
     };
+
+    // Primer mensaje real de un chat nuevo: que Alex le ponga nombre sola.
+    if (messages.length === 1) {
+      const currentChatId = chatId;
+      fetch('http://127.0.0.1:8000/chats/autoname', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: input })
+      })
+        .then(r => r.json())
+        .then((data: any) => {
+          if (data.name) {
+            setChatName(data.name);
+            setChats(prev => prev.some(c => c.id === currentChatId)
+              ? prev.map(c => c.id === currentChatId ? { ...c, name: data.name } : c)
+              : [...prev, { id: currentChatId, name: data.name, updated: new Date().toISOString() }]);
+          }
+        })
+        .catch(() => {});
+    }
+
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setLoading(true);
@@ -313,7 +362,7 @@ const AlexDashboard: React.FC = () => {
               {chats.map(chat => (
                 <div
                   key={chat.id}
-                  onClick={() => loadChat(chat.id)}
+                  onClick={() => editingChatId !== chat.id && loadChat(chat.id)}
                   style={{
                     padding: '8px',
                     marginBottom: '4px',
@@ -324,14 +373,61 @@ const AlexDashboard: React.FC = () => {
                     fontSize: '11px',
                     color: chatId === chat.id ? '#00d9a3' : '#888888',
                     transition: 'all 0.2s',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap'
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
                   }}
                   onMouseEnter={(e) => e.currentTarget.style.background = '#2a2a2a'}
                   onMouseLeave={(e) => e.currentTarget.style.background = chatId === chat.id ? 'rgba(0, 217, 163, 0.1)' : '#0a0a0a'}
                 >
-                  {chat.name}
+                  {editingChatId === chat.id ? (
+                    <input
+                      autoFocus
+                      value={editingName}
+                      onChange={(e) => setEditingName(e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          renameChat(chat.id, editingName);
+                          setEditingChatId(null);
+                        } else if (e.key === 'Escape') {
+                          setEditingChatId(null);
+                        }
+                      }}
+                      onBlur={() => {
+                        renameChat(chat.id, editingName);
+                        setEditingChatId(null);
+                      }}
+                      style={{
+                        flex: 1,
+                        background: '#0a0a0a',
+                        border: '1px solid #00d9a3',
+                        color: '#e0e0e0',
+                        fontSize: '11px',
+                        padding: '2px 4px',
+                        borderRadius: '2px',
+                        outline: 'none',
+                        fontFamily: 'inherit'
+                      }}
+                    />
+                  ) : (
+                    <>
+                      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {chat.name}
+                      </span>
+                      <span
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingChatId(chat.id);
+                          setEditingName(chat.name);
+                        }}
+                        title="Renombrar"
+                        style={{ opacity: 0.5, cursor: 'pointer', flexShrink: 0 }}
+                      >
+                        ✎
+                      </span>
+                    </>
+                  )}
                 </div>
               ))}
             </div>

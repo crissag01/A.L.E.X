@@ -44,6 +44,15 @@ def save_memory(text: str, category: Optional[str] = None, importance: int = 3) 
         except sqlite3.IntegrityError:
             return False
 
+def _importance_recency_mult(row, now) -> float:
+    importance_mult = 1.0 + (row["importance"] - 3) * 0.15
+    try:
+        age_days = (now - datetime.fromisoformat(row["created_at"])).days
+    except Exception:
+        age_days = 0
+    recency_mult = 0.7 + 0.3 * (1.0 / (1.0 + age_days / 365.0))
+    return importance_mult * recency_mult
+
 def search_memories(query: str, top_k: int = 3) -> List[str]:
     facts = _load_all_facts()
     if not facts or not query:
@@ -75,14 +84,7 @@ def search_memories(query: str, top_k: int = 3) -> List[str]:
         if score <= 0:
             continue
 
-        importance_mult = 1.0 + (row["importance"] - 3) * 0.15
-        try:
-            age_days = (now - datetime.fromisoformat(row["created_at"])).days
-        except Exception:
-            age_days = 0
-        recency_mult = 0.7 + 0.3 * (1.0 / (1.0 + age_days / 365.0))
-
-        scored.append((score * importance_mult * recency_mult, row))
+        scored.append((score * _importance_recency_mult(row, now), row))
 
     scored.sort(key=lambda x: x[0], reverse=True)
     top = scored[:top_k]
@@ -103,7 +105,19 @@ def get_context_for_message(user_input: str, top_k: int = 3) -> str:
         return ""
     memories = search_memories(user_input, top_k=top_k)
     if not memories:
-        return ""
+        # TF-IDF puro no encontró coincidencia de palabras clave (p.ej.
+        # preguntas meta como "¿qué recuerdas de ayer?" no comparten
+        # vocabulario con los hechos guardados). Cae a los hechos más
+        # importantes/recientes en vez de dejar a Alex sin memoria alguna,
+        # que la llevaba a reportar "memoria vacía" cuando no lo estaba.
+        facts = _load_all_facts()
+        if not facts:
+            return ""
+        now = datetime.now()
+        fallback = sorted(
+            facts, key=lambda row: _importance_recency_mult(row, now), reverse=True
+        )[:top_k]
+        memories = [row["text"] for row in fallback]
     return "Memorias relevantes:\n" + "\n".join(f"- {m}" for m in memories)
 
 def forget(identifier: str) -> str:
@@ -143,10 +157,14 @@ def save_turn(channel: str, role: str, content) -> None:
         conn.commit()
 
 def load_history(channel: str, limit: int = 20) -> List[dict]:
+    """Carga el historial reciente. Alex es una sola entidad para Cris, así
+    que el historial es compartido entre canales (web, telegram, etc.) en
+    vez de aislado por canal: el parámetro `channel` solo se usa para
+    etiquetar turnos nuevos en save_turn, no para filtrar la lectura."""
     with db.get_connection() as conn:
         rows = conn.execute(
-            "SELECT role, content FROM conversation_turns WHERE channel = ? ORDER BY id DESC LIMIT ?",
-            (channel, limit * 2)
+            "SELECT role, content FROM conversation_turns ORDER BY id DESC LIMIT ?",
+            (limit * 2,)
         ).fetchall()
 
     rows = list(reversed(rows))

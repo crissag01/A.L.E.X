@@ -1,5 +1,6 @@
 import json
 import os
+import anthropic
 from dotenv import load_dotenv
 from Memory import memory_manager
 from Tools.tool_manager import TOOLS
@@ -423,3 +424,25 @@ def ask(user_input: str, channel: str = "web", image_url: str = None, image_base
     for chunk in ask_stream(user_input, channel, image_url, image_base64, image_type):
         reply += chunk
     return reply
+
+def generate_chat_title(first_message: str) -> str:
+    """Genera un título corto para un chat a partir de su primer mensaje.
+    Llamada aislada: sin tools, sin historial, sin memoria — es una utilidad
+    de UI, no una interacción de Alex con Cris."""
+    first_message = (first_message or "").strip()
+    if not first_message:
+        return "Nuevo chat"
+    try:
+        client = anthropic.Anthropic()
+        response = client.messages.create(
+            model=os.getenv("ANTHROPIC_MODEL", "claude-sonnet-5"),
+            max_tokens=30,
+            thinking={"type": "disabled"},
+            system="Genera un título corto (máximo 5 palabras, sin comillas ni punto final) "
+                   "que resuma de qué trata el siguiente mensaje. Responde solo con el título.",
+            messages=[{"role": "user", "content": first_message[:500]}],
+        )
+        title = "".join(b.text for b in response.content if b.type == "text").strip()
+        return title.strip('"').strip() or "Nuevo chat"
+    except Exception:
+        return first_message[:40] + ("…" if len(first_message) > 40 else "")
