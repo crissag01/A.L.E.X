@@ -1,0 +1,28 @@
+import os
+from TTS.api import TTS
+
+tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2")
+
+VOICE_PROFILES = {
+    "molesta":    "Dialogos para voz/Molesta",
+    "neutral":    "Dialogos para voz/Neutral",
+    "sarcastica": "Dialogos para voz/Sarcastica",
+}
+
+def get_clips(folder):
+    return [
+        os.path.join(folder, f)
+        for f in os.listdir(folder)
+        if f.endswith(".wav")
+    ]
+
+def speak(text, tone="neutral"):
+    folder = VOICE_PROFILES.get(tone, VOICE_PROFILES["neutral"])
+    clips = get_clips(folder)
+    
+    tts.tts_to_file(
+        text=text,
+        speaker_wav=clips,
+        language="es",
+        file_path="output.wav"
+    )

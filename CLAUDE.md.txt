@@ -1,0 +1,21 @@
+Quiero crear mi propio asistente personal con genero femenino y personalidad seria, directa y sarcastica que me ayude a detector manipulacion emocional y usando la informacion sobre mi me cuestione mis decisions 
+
+STACK:
+
+-Python 3.14
+
+- LM STUDIO (Puero x.x.x.x/v1)
+-modelo: Gemma4-e4b-uncensored (Ya que he nota que sigue la personaldad casi al 100%)
+
+- CHROMADB para memoria vectorial
+
+- Frontend Rust+TypeScript
+
+-FastAPI
+
+Tools.py
+- Web_search (Duckduckgo o Brave API)
+- Web_fetch
+- Files seach y read
+- IDE Python
+- Skills creator

@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alex - Asistente</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --green:#1D9E75;--green-dim:#0F6E56;--green-bg:#061a13;--green-border:#0F3D2A;
+  --surface:#0a0a0a;--surface2:#111;--border:#1a1a1a;--border2:#222;
+  --text:#ccc;--text-dim:#555;--text-faint:#333;
+  --mono:'Courier New',monospace;
+}
+html,body{height:100%;background:#000;font-family:var(--mono);font-size:13px;color:var(--text)}
+.layout{display:flex;height:100vh;overflow:hidden}
+
+/* SIDEBAR */
+.sidebar{width:220px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.sidebar-logo{padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.sidebar-logo .logo{color:var(--green);font-weight:bold;letter-spacing:3px;font-size:12px}
+.sidebar-logo .ver{font-size:10px;color:var(--text-dim);margin-left:auto}
+.sidebar-section{padding:6px 8px;border-bottom:1px solid var(--border)}
+.sidebar-label{font-size:9px;color:var(--text-faint);letter-spacing:1.5px;text-transform:uppercase;padding:4px 4px 6px}
+.project-item{display:flex;align-items:center;gap:6px;padding:5px 6px;border-radius:3px;cursor:pointer;color:var(--text-dim);font-size:11px;transition:background .1s}
+.project-item:hover{background:var(--surface2)}
+.project-item.active{background:var(--green-bg);color:var(--green)}
+.project-item i{font-size:13px;flex-shrink:0}
+.new-btn{display:flex;align-items:center;gap:5px;padding:4px 6px;font-size:10px;color:var(--text-faint);cursor:pointer;border-radius:3px;transition:color .1s;margin-top:2px}
+.new-btn:hover{color:var(--green)}
+
+.chat-list{flex:1;overflow-y:auto;padding:4px 8px}
+.chat-list::-webkit-scrollbar{width:3px}
+.chat-list::-webkit-scrollbar-thumb{background:var(--border2)}
+.chat-item{padding:5px 6px;border-radius:3px;cursor:pointer;color:var(--text-dim);font-size:11px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:background .1s}
+.chat-item:hover{background:var(--surface2);color:var(--text)}
+.chat-item.active{background:var(--green-bg);color:var(--green)}
+.chat-date{font-size:9px;color:var(--text-faint);padding:6px 6px 2px;letter-spacing:.5px}
+
+/* RESOURCES */
+.resources{padding:8px;border-top:1px solid var(--border)}
+.res-label{font-size:9px;color:var(--text-faint);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px}
+.res-row{margin-bottom:6px}
+.res-name{display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);margin-bottom:3px}
+.res-val{color:var(--green)}
+.res-bar{height:3px;background:var(--border2);border-radius:2px;overflow:hidden}
+.res-fill{height:100%;background:var(--green);border-radius:2px;transition:width .8s ease}
+.res-fill.warn{background:#BA7517}
+.res-fill.danger{background:#E24B4A}
+
+/* MAIN */
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+
+/* TOPBAR */
+.topbar{display:flex;align-items:center;gap:8px;padding:7px 14px;background:var(--surface);border-bottom:1px solid var(--border);font-size:11px;color:var(--text-dim);flex-shrink:0}
+.topbar .chat-title{font-size:12px;color:var(--text)}
+.conn-wrap{margin-left:auto;display:flex;align-items:center;gap:6px}
+.conn-dot{width:8px;height:8px;border-radius:50%;background:#333;transition:background .3s,box-shadow .3s}
+.conn-dot.ok{background:var(--green);box-shadow:0 0 0 2px #1D9E7522}
+.conn-dot.err{background:#E24B4A}
+.conn-dot.checking{background:#BA7517;animation:pulse .8s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.conn-txt{font-size:10px}
+.conn-url{font-size:10px;font-family:var(--mono);background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:2px 6px;color:var(--text-dim);outline:none;width:180px}
+.conn-url:focus{border-color:var(--green);color:var(--text)}
+.ping-btn{background:none;border:1px solid var(--border);border-radius:3px;padding:2px 7px;font-family:var(--mono);font-size:10px;color:var(--text-dim);cursor:pointer;transition:all .1s}
+.ping-btn:hover{border-color:var(--green);color:var(--green)}
+
+/* CHAT AREA */
+.chat{flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:12px}
+.chat::-webkit-scrollbar{width:4px}
+.chat::-webkit-scrollbar-track{background:#000}
+.chat::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.msg{display:flex;flex-direction:column;gap:3px}
+.msg.user{align-items:flex-end}
+.msg.alex{align-items:flex-start}
+.msg-who{font-size:10px;color:var(--text-faint);letter-spacing:1px;padding:0 3px}
+.msg.alex .msg-who{color:var(--green)}
+.bubble{max-width:78%;padding:8px 12px;border-radius:4px;font-size:12px;line-height:1.65;white-space:pre-wrap;word-break:break-word}
+.msg.user .bubble{background:var(--surface2);color:var(--text);border:1px solid var(--border2)}
+.msg.alex .bubble{background:var(--green-bg);color:#9FE1CB;border:1px solid var(--green-border)}
+.msg-meta{font-size:10px;color:var(--text-faint);padding:0 3px}
+.typing{display:none;align-items:center;gap:4px;padding:2px 3px}
+.typing span{width:5px;height:5px;border-radius:50%;background:var(--green);animation:blink 1.2s infinite}
+.typing span:nth-child(2){animation-delay:.2s}
+.typing span:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,80%,100%{opacity:.15}40%{opacity:1}}
+.typing.show{display:flex}
+.file-bubble{display:flex;align-items:center;gap:6px;padding:5px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:3px;font-size:11px;color:var(--text-dim);max-width:78%;align-self:flex-end}
+.file-bubble i{font-size:14px;color:var(--green)}
+
+/* INPUT */
+.input-area{border-top:1px solid var(--border);padding:10px 14px;background:#000;flex-shrink:0}
+.ctx-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.ctx-circle-wrap{position:relative;width:28px;height:28px;flex-shrink:0}
+.ctx-circle-wrap svg{position:absolute;top:0;left:0}
+.ctx-pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--green)}
+.ctx-label{font-size:10px;color:var(--text-faint)}
+.ctx-label span{color:var(--green)}
+.ctx-files{display:flex;gap:4px;flex-wrap:wrap;flex:1}
+.ctx-file-tag{display:flex;align-items:center;gap:4px;padding:2px 7px;background:var(--surface2);border:1px solid var(--border2);border-radius:3px;font-size:10px;color:var(--text-dim)}
+.ctx-file-tag i{font-size:12px}
+.ctx-file-tag .rm{cursor:pointer;color:var(--text-faint);margin-left:2px;font-size:11px}
+.ctx-file-tag .rm:hover{color:#E24B4A}
+.toolbar{display:flex;gap:5px;margin-bottom:8px;align-items:center}
+.tool-btn{background:none;border:1px solid var(--border);border-radius:3px;padding:3px 8px;font-family:var(--mono);font-size:11px;color:var(--text-dim);cursor:pointer;display:flex;align-items:center;gap:4px;transition:all .1s}
+.tool-btn:hover{border-color:var(--green-dim);color:var(--text)}
+.tool-btn i{font-size:13px}
+.input-row{display:flex;gap:6px;align-items:center}
+.prompt{color:var(--green);font-size:14px;flex-shrink:0}
+.txt-input{flex:1;background:none;border:none;outline:none;font-family:var(--mono);font-size:13px;color:var(--text);caret-color:var(--green)}
+.txt-input::placeholder{color:var(--text-faint)}
+.send-btn{background:none;border:1px solid var(--green);border-radius:3px;padding:5px 12px;font-family:var(--mono);font-size:11px;color:var(--green);cursor:pointer;display:flex;align-items:center;gap:4px;transition:background .15s;flex-shrink:0}
+.send-btn:hover{background:var(--green-bg)}
+.send-btn:disabled{opacity:.3;cursor:not-allowed}
+.kbd{font-size:10px;color:var(--text-faint);border:1px solid var(--border);border-radius:2px;padding:0 4px;margin-left:auto}
+input[type="file"]{display:none}
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <span class="logo">A.L.E.X</span>
+      <span class="ver">v0.2</span>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">proyectos</div>
+      <div class="project-item active" onclick="selectProject(this,'Alex Core')">
+        <i class="ti ti-robot" aria-hidden="true"></i> Alex Core
+      </div>
+      <div class="project-item" onclick="selectProject(this,'Automatizaciones')">
+        <i class="ti ti-settings-automation" aria-hidden="true"></i> Automatizaciones
+      </div>
+      <div class="project-item" onclick="selectProject(this,'General')">
+        <i class="ti ti-folder" aria-hidden="true"></i> General
+      </div>
+      <div class="new-btn" onclick="newProject()">
+        <i class="ti ti-plus" aria-hidden="true"></i> nuevo proyecto
+      </div>
+    </div>
+
+    <div class="sidebar-section" style="flex:1;overflow:hidden;display:flex;flex-direction:column;padding:6px 8px;">
+      <div class="sidebar-label">chats</div>
+      <div class="chat-list" id="chat-list">
+        <div class="chat-date">Hoy</div>
+        <div class="chat-item" onclick="selectChat(this,'Tools - function calling')">Tools - function calling</div>
+        <div class="chat-item" onclick="selectChat(this,'Pruebas')">Pruebas</div>  
+        <div class="chat-date">Ayer</div>
+        <div class="chat-item" onclick="selectChat(this,'FastAPI setup')">FastAPI setup</div>
+        <div class="chat-item" onclick="selectChat(this,'Frontend TUI')">Frontend TUI</div>
+        <div class="chat-item" onclick="selectChat(this,'Voice cloning XTTS')">Voice cloning XTTS</div>
+        <div class="chat-date">esta semana</div>
+        <div class="chat-item" onclick="selectChat(this,'Manipulaciones - Amisadai')">Manipulaciones - Amisadai</div>
+        <div class="chat-item active" onclick="selectChat(this,'Sarcasmo como defensa')">Sarcasmo como defensa</div>
+        <div class="chat-item active" onclick="selectChat(this,'Patrones - Erick Corona')">Patrones - Erick Corona</div>
+        <div class="chat-item active" onclick="selectChat(this,'Procrastinar?')">Procrastinar?</div>
+      </div>
+      <div class="new-btn" onclick="newChat()">
+        <i class="ti ti-plus" aria-hidden="true"></i> nuevo chat
+      </div>
+    </div>
+
+    <!-- RESOURCES -->
+    <div class="resources">
+      <div class="res-label">recursos</div>
+      <div class="res-row">
+        <div class="res-name"><span>CPU</span><span class="res-val" id="cpu-val">–%</span></div>
+        <div class="res-bar"><div class="res-fill" id="cpu-bar" style="width:0%"></div></div>
+      </div>
+      <div class="res-row">
+        <div class="res-name"><span>RAM</span><span class="res-val" id="ram-val">– / 16 GB</span></div>
+        <div class="res-bar"><div class="res-fill" id="ram-bar" style="width:0%"></div></div>
+      </div>
+      <div class="res-row">
+        <div class="res-name"><span>LM Studio</span><span class="res-val" id="lm-val">–</span></div>
+        <div class="res-bar"><div class="res-fill" id="lm-bar" style="width:0%"></div></div>
+      </div>
+      <div style="font-size:9px;color:var(--text-faint);margin-top:4px" id="res-note">simulado — conecta /resources al backend</div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <i class="ti ti-message" aria-hidden="true" style="font-size:14px"></i>
+      <span class="chat-title" id="chat-title">Chat actual</span>
+      <div class="conn-wrap">
+        <input class="conn-url" id="api-url" value="http://127.0.0.1:8000" placeholder="http://127.0.0.1:8000">
+        <button class="ping-btn" onclick="ping()">ping</button>
+        <div class="conn-dot" id="sdot"></div>
+        <span class="conn-txt" id="stxt">desconectado</span>
+      </div>
+    </div>
+
+    <div class="chat" id="chat">
+      <div class="msg alex">
+        <span class="msg-meta" id="init-time"></span>
+      </div>
+      <div class="typing" id="typing">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+
+    <div class="input-area">
+      <!-- CONTEXT ROW -->
+      <div class="ctx-row">
+        <div class="ctx-circle-wrap">
+          <svg width="28" height="28" viewBox="0 0 28 28">
+            <circle cx="14" cy="14" r="11" fill="none" stroke="#1a1a1a" stroke-width="2.5"/>
+            <circle cx="14" cy="14" r="11" fill="none" stroke="#1D9E75" stroke-width="2.5"
+              stroke-dasharray="69.1" stroke-dashoffset="69.1"
+              stroke-linecap="round" transform="rotate(-90 14 14)"
+              id="ctx-arc"/>
+          </svg>
+          <span class="ctx-pct" id="ctx-pct">0%</span>
+        </div>
+        <span class="ctx-label">contexto: <span id="ctx-used">0</span> / <span id="ctx-max">4096</span> tokens</span>
+        <div class="ctx-files" id="ctx-files"></div>
+      </div>
+
+      <!-- TOOLBAR -->
+      <div class="toolbar">
+        <label for="file-input" class="tool-btn" style="cursor:pointer">
+          <i class="ti ti-upload" aria-hidden="true"></i> archivo
+        </label>
+        <input type="file" id="file-input" multiple accept=".py,.txt,.md,.json,.yaml,.csv,.js,.html">
+        <button class="tool-btn" onclick="clearChat()">
+          <i class="ti ti-trash" aria-hidden="true"></i> limpiar
+        </button>
+        <button class="tool-btn" onclick="newChat()">
+          <i class="ti ti-plus" aria-hidden="true"></i> nuevo chat
+        </button>
+        <span class="kbd">Enter enviar</span>
+      </div>
+
+      <!-- INPUT ROW -->
+      <div class="input-row">
+        <span class="prompt">❯</span>
+        <input class="txt-input" id="inp" placeholder="escribe tu mensaje..." autocomplete="off">
+        <button class="send-btn" id="sbtn" onclick="send()">
+          <i class="ti ti-send" aria-hidden="true"></i> enviar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const chatEl = document.getElementById('chat');
+const inp = document.getElementById('inp');
+const sbtn = document.getElementById('sbtn');
+const typing = document.getElementById('typing');
+const sdot = document.getElementById('sdot');
+const stxt = document.getElementById('stxt');
+const ctxArc = document.getElementById('ctx-arc');
+const ctxPct = document.getElementById('ctx-pct');
+const ctxUsed = document.getElementById('ctx-used');
+const ctxFiles = document.getElementById('ctx-files');
+const fileInput = document.getElementById('file-input');
+
+const CIRCUMFERENCE = 69.1;
+const MAX_TOKENS = 4096;
+let tokenCount = 0;
+let attachedFiles = [];
+let chatHistory = [];
+let currentChatTitle = 'Chat actual';
+
+function apiUrl(){ return document.getElementById('api-url').value.replace(/\/$/, ''); }
+
+function nowStr(){
+  return new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+}
+
+document.getElementById('init-time').textContent = nowStr();
+
+function setStatus(state, label){
+  sdot.className = 'conn-dot ' + state;
+  stxt.textContent = label;
+}
+
+async function ping(){
+  setStatus('checking', 'verificando...');
+  try{
+    const r = await fetch(apiUrl()+'/docs',{method:'GET',signal:AbortSignal.timeout(3000)});
+    setStatus(r.ok ? 'ok' : 'err', r.ok ? 'conectado' : 'error '+r.status);
+  } catch(e){
+    setStatus('err','sin conexión');
+  }
+}
+
+function updateContext(text){
+  const est = Math.ceil(text.length / 4);
+  tokenCount += est;
+  if(tokenCount > MAX_TOKENS) tokenCount = MAX_TOKENS;
+  const pct = Math.round((tokenCount / MAX_TOKENS) * 100);
+  const offset = CIRCUMFERENCE - (pct / 100) * CIRCUMFERENCE;
+  ctxArc.style.strokeDashoffset = offset;
+  ctxArc.style.stroke = pct > 80 ? '#E24B4A' : pct > 60 ? '#BA7517' : '#1D9E75';
+  ctxPct.textContent = pct + '%';
+  ctxUsed.textContent = tokenCount;
+}
+
+function addMsg(who, text){
+  const row = document.createElement('div');
+  row.className = 'msg ' + who;
+  const sp = document.createElement('span');
+  sp.className = 'msg-who';
+  sp.textContent = who === 'user' ? 'TÚ' : 'ALEX';
+  const b = document.createElement('div');
+  b.className = 'bubble';
+  b.textContent = text;
+  const meta = document.createElement('span');
+  meta.className = 'msg-meta';
+  meta.textContent = nowStr();
+  row.appendChild(sp);
+  row.appendChild(b);
+  row.appendChild(meta);
+  chatEl.insertBefore(row, typing);
+  chatEl.scrollTop = chatEl.scrollHeight;
+  updateContext(text);
+}
+
+function addFileMsg(filename){
+  const row = document.createElement('div');
+  row.className = 'msg user';
+  const tag = document.createElement('div');
+  tag.className = 'file-bubble';
+  tag.innerHTML = `<i class="ti ti-file-code" aria-hidden="true"></i>${filename}`;
+  row.appendChild(tag);
+  chatEl.insertBefore(row, typing);
+  chatEl.scrollTop = chatEl.scrollHeight;
+}
+
+async function send(){
+  const val = inp.value.trim();
+  if(!val) return;
+  inp.value = '';
+  sbtn.disabled = true;
+  addMsg('user', val);
+  chatHistory.push({role:'user',content:val});
+  typing.className = 'typing show';
+  chatEl.scrollTop = chatEl.scrollHeight;
+
+  try{
+    const res = await fetch(apiUrl()+'/chat',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({text:val})
+    });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const data = await res.json();
+    typing.className = 'typing';
+    addMsg('alex', data.reply);
+    chatHistory.push({role:'assistant',content:data.reply});
+    setStatus('ok','conectado');
+    addChatToList(currentChatTitle || val.slice(0,28));
+  } catch(e){
+    typing.className = 'typing';
+    addMsg('alex','[error: '+e.message+']');
+    setStatus('err','error');
+  }
+
+  sbtn.disabled = false;
+  inp.focus();
+}
+
+inp.addEventListener('keydown', e => { if(e.key==='Enter') send(); });
+
+function clearChat(){
+  chatEl.innerHTML = '';
+  const t = document.createElement('div');
+  t.className = 'typing';
+  t.id = 'typing';
+  t.innerHTML = '<span></span><span></span><span></span>';
+  chatEl.appendChild(t);
+  tokenCount = 0;
+  ctxArc.style.strokeDashoffset = CIRCUMFERENCE;
+  ctxPct.textContent = '0%';
+  ctxUsed.textContent = '0';
+  chatHistory = [];
+  addMsg('alex','Conversación limpiada.');
+}
+
+function newChat(){
+  clearChat();
+  currentChatTitle = 'Nuevo chat';
+  document.getElementById('chat-title').textContent = currentChatTitle;
+  document.querySelectorAll('.chat-item').forEach(x=>x.classList.remove('active'));
+}
+
+function selectChat(el, title){
+  document.querySelectorAll('.chat-item').forEach(x=>x.classList.remove('active'));
+  el.classList.add('active');
+  currentChatTitle = title;
+  document.getElementById('chat-title').textContent = title;
+}
+
+function selectProject(el, name){
+  document.querySelectorAll('.project-item').forEach(x=>x.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function newProject(){
+  const name = prompt('Nombre del proyecto:');
+  if(!name) return;
+  const list = document.querySelector('.sidebar-section:nth-child(2)');
+  const btn = list.querySelector('.new-btn');
+  const item = document.createElement('div');
+  item.className = 'project-item';
+  item.innerHTML = `<i class="ti ti-folder" aria-hidden="true"></i> ${name}`;
+  item.onclick = () => selectProject(item, name);
+  list.insertBefore(item, btn);
+}
+
+function addChatToList(title){
+  const list = document.getElementById('chat-list');
+  const existing = [...list.querySelectorAll('.chat-item')].find(x=>x.textContent===title);
+  if(existing) return;
+  const item = document.createElement('div');
+  item.className = 'chat-item active';
+  item.textContent = title;
+  item.onclick = () => selectChat(item, title);
+  const firstDate = list.querySelector('.chat-date');
+  list.insertBefore(item, firstDate ? firstDate.nextSibling : null);
+  document.querySelectorAll('.chat-item').forEach(x=>x.classList.remove('active'));
+  item.classList.add('active');
+}
+
+fileInput.addEventListener('change', () => {
+  Array.from(fileInput.files).forEach(f => {
+    if(attachedFiles.find(x=>x.name===f.name)) return;
+    attachedFiles.push(f);
+    addFileMsg(f.name);
+    const tag = document.createElement('div');
+    tag.className = 'ctx-file-tag';
+    const ext = f.name.split('.').pop();
+    const icons = {py:'ti-brand-python',md:'ti-markdown',json:'ti-braces',txt:'ti-file-text',js:'ti-brand-javascript',html:'ti-brand-html5',yaml:'ti-file',csv:'ti-table'};
+    tag.innerHTML = `<i class="ti ${icons[ext]||'ti-file'}" aria-hidden="true"></i>${f.name}<span class="rm" onclick="removeFile('${f.name}',this.parentElement)">×</span>`;
+    ctxFiles.appendChild(tag);
+    updateContext(f.name.repeat(20));
+  });
+  fileInput.value = '';
+});
+
+function removeFile(name, el){
+  attachedFiles = attachedFiles.filter(f=>f.name!==name);
+  el.remove();
+}
+
+/* SIMULATED RESOURCES — replace with real /resources endpoint */
+function updateResources(){
+  const cpu = 20 + Math.random()*40;
+  const ram = 6 + Math.random()*4;
+  const lm = 30 + Math.random()*20;
+  document.getElementById('cpu-val').textContent = Math.round(cpu)+'%';
+  document.getElementById('ram-val').textContent = ram.toFixed(1)+' / 16 GB';
+  document.getElementById('lm-val').textContent = Math.round(lm)+'%';
+  const cpuBar = document.getElementById('cpu-bar');
+  const ramBar = document.getElementById('ram-bar');
+  const lmBar = document.getElementById('lm-bar');
+  cpuBar.style.width = cpu+'%';
+  cpuBar.className = 'res-fill'+(cpu>80?' danger':cpu>60?' warn':'');
+  ramBar.style.width = (ram/16*100)+'%';
+  ramBar.className = 'res-fill'+((ram/16)>0.85?' danger':(ram/16)>0.65?' warn':'');
+  lmBar.style.width = lm+'%';
+}
+updateResources();
+setInterval(updateResources, 3000);
+
+ping();
+</script>
+</body>
+</html>

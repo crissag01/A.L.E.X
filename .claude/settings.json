@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(claude-api)",
+      "Skill(claude-api:*)",
+      "Bash(Get-ChildItem -Force)",
+      "Bash(Select-Object Name)",
+      "Bash(rm -rf .venv)",
+      "Bash(python -m venv .venv)",
+      "Bash(ls -la \"c:\\\\Users\\\\criss\\\\Downloads\\\\Alex v1 \\(Stable\\)\\\\\" 2>&1 | head -30)",
+      "Read(//c/Users/criss/Downloads/**)",
+      "Bash(python -c \"import pkg_resources\")",
+      "Bash(\"c:\\\\Users\\\\criss\\\\Downloads\\\\Alex v1 *)",
+      "Bash(python -c \"from Memory import db; db.init_db\\(\\); print\\('✅ Base de datos creada en Memory/alex.db'\\)\")",
+      "Bash(python -c \"from Memory import db; db.init_db\\(\\); print\\('Base de datos creada en Memory/alex.db'\\)\")",
+      "Bash(python -m Memory.migrate)"
+    ]
+  }
+}
