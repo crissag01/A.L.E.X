@@ -27,12 +27,48 @@ def load_memories() -> List[str]:
     """Compat: lista plana de textos (usado por Memory/__init__.py)."""
     return [row["text"] for row in _load_all_facts()]
 
+def _jaccard(a: List[str], b: List[str]) -> float:
+    sa, sb = set(a), set(b)
+    if not sa or not sb:
+        return 0.0
+    return len(sa & sb) / len(sa | sb)
+
+def _find_similar_fact(conn, text: str, threshold: float = 0.6):
+    """Busca una memoria existente que hable de lo mismo (alto solape de
+    palabras), para actualizarla en vez de duplicarla. Sin esto, cada
+    `remember` sobre un tema ya conocido (p.ej. el estado de un proyecto)
+    se apila como un hecho nuevo mientras el viejo se queda ahí para
+    siempre, compitiendo por los mismos top_k resultados en las búsquedas."""
+    tokens = _tokenize(text)
+    if not tokens:
+        return None
+    best, best_score = None, threshold
+    for row in conn.execute("SELECT id, text FROM facts").fetchall():
+        score = _jaccard(tokens, _tokenize(row["text"]))
+        if score >= best_score:
+            best, best_score = row, score
+    return best
+
 def save_memory(text: str, category: Optional[str] = None, importance: int = 3) -> bool:
     text = (text or "").strip()
     if not text:
         return False
     now = datetime.now().isoformat()
     with db.get_connection() as conn:
+        if conn.execute("SELECT 1 FROM facts WHERE text = ?", (text,)).fetchone():
+            return False
+
+        similar = _find_similar_fact(conn, text)
+        if similar:
+            conn.execute(
+                "UPDATE facts SET text = ?, category = COALESCE(?, category), "
+                "importance = ?, created_at = ?, access_count = 0, last_accessed_at = NULL "
+                "WHERE id = ?",
+                (text, category, importance, now, similar["id"])
+            )
+            conn.commit()
+            return True
+
         try:
             cur = conn.execute(
                 "INSERT OR IGNORE INTO facts (text, category, importance, created_at, access_count) "
@@ -50,7 +86,10 @@ def _importance_recency_mult(row, now) -> float:
         age_days = (now - datetime.fromisoformat(row["created_at"])).days
     except Exception:
         age_days = 0
-    recency_mult = 0.7 + 0.3 * (1.0 / (1.0 + age_days / 365.0))
+    # Vida media de ~90 días: una memoria fresca pesa el doble que una de
+    # tres meses. Antes el piso era 0.7 sobre un año completo, tan plano
+    # que lo viejo y lo reciente competían casi igual en el ranking.
+    recency_mult = 0.5 + 0.5 * (1.0 / (1.0 + age_days / 90.0))
     return importance_mult * recency_mult
 
 def search_memories(query: str, top_k: int = 3) -> List[str]:

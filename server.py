@@ -128,7 +128,8 @@ def start_telegram_polling():
         chat_id = message["chat"]["id"]
         user_id = message["from"]["id"]
         username = message["from"].get("username", f"user_{user_id}")
-        text = message.get("text", "")
+        # Los mensajes con foto/documento traen el texto en "caption", no en "text"
+        text = message.get("text", "") or message.get("caption", "")
 
         # Control de acceso
         allowed, status = check_access(user_id)
