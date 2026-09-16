@@ -14,9 +14,14 @@ __pycache__/
 .DS_Store
 3d Model/
 
-# Datos personales de Cris (memoria, conversaciones) - nunca a git
+# Datos personales de Cris y de contactos (memoria, conversaciones) - nunca a git
 Memory/alex.db
 Memory/alex.db-shm
 Memory/alex.db-wal
+Memory/alex_memory.db
+Memory/contacts/
+Memory/memory.json
+Memory/memory.json.bak
+Memory/chroma_data/
 chats.json
 chats.json.bak
