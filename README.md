@@ -15,62 +15,9 @@ Frontend React para Alex con backend FastAPI. Diseño oscuro, directo, sin bloat
 └── vite.config.js              # Config Vite
 ```
 
-## Setup
+## Licencia y uso del código
 
-### 1. Backend FastAPI
-
-Requisitos previos:
-- Python 3.11+
-- `brain.py` existente en el mismo directorio (o ajustar import)
-- Ollama/LM Studio corriendo en `localhost:1234/v1`
-
-Instalar dependencias:
-```bash
-pip install fastapi uvicorn psutil --break-system-packages
-```
-
-Ejecutar:
-```bash
-python api.py
-```
-
-El backend estará en `http://127.0.0.1:8000`
-
-Health check: `curl http://127.0.0.1:8000/health`
-
-### 2. Frontend React
-
-Requisitos:
-- Node.js 18+
-- npm/pnpm/yarn
-
-Instalar dependencias:
-```bash
-npm install
-# o
-pnpm install
-```
-
-Ejecutar en desarrollo:
-```bash
-npm run dev
-```
-
-Abre automáticamente en `http://localhost:5173`
-
-### 3. Flujo completo
-
-Terminal 1 (Backend):
-```bash
-python api.py
-```
-
-Terminal 2 (Frontend):
-```bash
-npm run dev
-```
-
-Abre navegador → `http://localhost:5173`
+Este repositorio **no cuenta con ninguna licencia de código abierto**. Todos los derechos están reservados. El uso, clonación, fork, copia, redistribución o modificación de este código sin autorización expresa y por escrito del autor está **estrictamente prohibido** y será objeto de las acciones legales correspondientes.
 
 ## Endpoints
 
